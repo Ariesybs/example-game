@@ -13,7 +13,7 @@ export class DirLight extends DirectionalLight {
   constructor() {
     super(0xffffff, 3);
     this.color.setHSL(0.1, 1, 0.95);
-    this.position.set(-1, 1.75, 2);
+    this.position.set(-1, 1.75, 1);
     this.position.multiplyScalar(30);
     this.castShadow = true;
     this.shadow.mapSize.width = 2048;

@@ -4,6 +4,7 @@ export class Character {
   constructor(mixer) {
     this.loader = new GLTFLoader();
     this.mixer = mixer;
+    this.isRun = false
   }
 
   async loadCharacter(characterName) {
@@ -13,7 +14,6 @@ export class Character {
       this.mesh = data.mesh;
       this.animations = data.animations;
       this.playAnimation("idle");
-      console.log("Character loaded and added to the scene.");
     } catch (error) {
       console.error("Error loading character:", error);
     }
@@ -84,8 +84,7 @@ export class Character {
   }
 
   playAnimation(animationName) {
-    // 根据动作名称播放相应的动画
-    console.log("play animation" + animationName);
+
     const action = this.mixer.clipAction(
       this.animations[animationName],
       this.mesh
