@@ -111,7 +111,6 @@ export class ChatBox {
     messageElement.style.wordWrap = 'break-word'; // 当文字过长时换行
     //messageElement.style.color = "white"
     this.messagePanel.appendChild(messageElement);
-    console.log(this.messagePanel.scrollTop)
     if(this.messagePanel.scrollTop){
         this.messagePanel.scrollTop = this.messagePanel.scrollHeight;
     }

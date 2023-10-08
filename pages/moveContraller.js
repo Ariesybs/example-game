@@ -80,7 +80,5 @@ export class MoveController {
     }
   };
 
-  move = ()=>{
 
-  }
 }

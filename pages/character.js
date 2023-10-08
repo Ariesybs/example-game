@@ -1,5 +1,5 @@
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { LoopOnce, MeshStandardMaterial, Mesh } from "three";
+import { LoopOnce } from "three";
 export class Character {
   constructor(mixer) {
     this.loader = new GLTFLoader();
@@ -25,16 +25,12 @@ export class Character {
         `/models/${characterName}.gltf`,
         (gltf) => {
           const model = gltf.scene;
-          const material = new MeshStandardMaterial({
-            color: 0xffffff, // 设置材质的颜色
-            roughness: 0.7, // 设置粗糙度
-            metalness: 0.5, // 设置金属度
-          });
+
+          // 遍历模型的所有子元素，为其材质启用阴影接收
           model.traverse((child) => {
-            if (child instanceof Mesh) {
-              child.material = material; // 将材质赋予每个网格
-              child.receiveShadow = true; // 允许模型接收阴影
-              child.castShadow = true; // 允许模型投射阴影
+            if (child.isMesh) {
+              child.castShadow = true; // 启用投射阴影
+              child.receiveShadow = true; // 启用接收阴影
             }
           });
           const mesh = model.children[0];

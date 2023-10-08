@@ -18,14 +18,16 @@ import { UI } from "./ui";
 export class Game {
   constructor() {
     this.init();
+
     this.onWindowResize = this.onWindowResize.bind(this);
     window.addEventListener("resize", this.onWindowResize);
     document.getElementById("container").appendChild(this.renderer.domElement);
-    //隐藏滚动条
+    //隐藏滚动条并更改鼠标样式
     this.style = document.createElement("style");
     this.style.innerHTML = `
       body {
         overflow: hidden;
+        cursor: url('/cursor.ico'), auto;
       }
     `;
     document.head.appendChild(this.style);
@@ -43,7 +45,7 @@ export class Game {
       5000
     );
 
-    this.camera.position.set(0, -10, 250);
+    this.camera.position.set(0, 60, 250);
 
     this.renderer = new WebGLRenderer({
       antialias: true,
@@ -52,7 +54,7 @@ export class Game {
     this.renderer.shadowMap.enabled = true;
     this.clock = new Clock();
     this.mixer = new AnimationMixer();
-    this.map = new Map();
+    this.map = new Map(this.scene);
     this.hemiLight = new HemiLight();
     this.dirLight = new DirLight();
     this.sky = new Sky(this.hemiLight, this.scene);
@@ -64,13 +66,14 @@ export class Game {
     this.character = new Character(this.mixer);
     await this.character.loadCharacter(characterName);
     this.characterMesh = this.character.mesh;
-    this.gamepadManager = new GamepadManager(this.character,this.mixer)
+    
     this.playerController = new PlayerController(
       this.camera,
       this.renderer.domElement,
       this.character,
       this.mixer
     );
+    this.gamepadManager = new GamepadManager(this.character,this.camera,this.mixer,this.playerController.turnController)
     this.load();
     this.render();
   }
@@ -113,9 +116,17 @@ export class Game {
 
   // 计算移动向量
   var moveDirection = localZ.clone().multiplyScalar(this.v);
+  // 玩家模型的位置
+  const playerPosition = this.character.mesh.position; 
 
   // 更新模型的位置
-  this.character.mesh.position.add(moveDirection);
+  playerPosition.add(moveDirection);
+
+  //摄像机时时跟随
+  this.playerController.turnController.target.copy(new Vector3(playerPosition.x,playerPosition.y+40,playerPosition.z))
+  this.camera.position.add(moveDirection)//lerp(this.camera.position.copy().add(moveDirection), 0.3); // 平滑过渡摄像机位置
+  this.camera.lookAt(playerPosition.x,playerPosition.y+40,playerPosition.z); // 让摄像机始终看向玩家
+
     // 继续下一帧
     requestAnimationFrame(this.render.bind(this));
   }

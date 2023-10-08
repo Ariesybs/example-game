@@ -7,6 +7,8 @@ export default function main() {
     if (!game) {
       game = new Game();
     }
+    
+    
   }, []);
   return <div id="container" />;
 }
