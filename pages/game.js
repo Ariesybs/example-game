@@ -108,6 +108,7 @@ export class Game {
       else this.v = 0
     }
 
+
   // 获取模型的本地Z轴
   var localZ = new Vector3(0, 0, 1);
 

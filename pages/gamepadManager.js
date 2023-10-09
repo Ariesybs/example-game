@@ -74,23 +74,18 @@ export class GamepadManager {
                 gamepadRightStick.x = gamepad.axes[2]; // 右摇杆 X 轴
                 gamepadRightStick.y = gamepad.axes[3]; // 右摇杆 Y 轴
                 
-                // 更新鼠标位置
-                const sensitivity = 2; // 调整灵敏度
-                this.mouseX += gamepadRightStick.x * sensitivity;
-                this.mouseY += gamepadRightStick.y * sensitivity;
-                console.log(this.mouseX)
-                // 模拟鼠标移动
-                document.dispatchEvent(new MouseEvent('mousemove', { clientX: this.mouseX, clientY: this.mouseY }));
-                
-                // 检测右摇杆按下事件
-                if (gamepad.buttons[14].pressed) { // 右摇杆按下的按钮索引可能不同
-                    // 模拟鼠标单击事件
-                    document.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
-                    document.dispatchEvent(new MouseEvent('mouseup', { button: 0 }));
-                }
-                
-                
-                 
+                // 设置旋转速度
+                const rotationSpeed = 0.02; // 旋转速度
+                const cameraRadius = 250;
+                const cameraTheta = Math.PI * 2 * gamepadRightStick.x; // 水平角度
+                const cameraPhi = Math.PI * 2 * gamepadRightStick.y; // 垂直角度
+                // 根据右摇杆的输入计算水平和垂直旋转角度
+                const horizontalRotationDelta = -gamepadRightStick.x * rotationSpeed;
+                const verticalRotationDelta = -gamepadRightStick.y * rotationSpeed;
+
+                // 更新相机的水平旋转
+                this.camera.position.applyAxisAngle(new Vector3(0, 1, 0), horizontalRotationDelta);
+    
             }
         }
 
