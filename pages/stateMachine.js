@@ -56,7 +56,7 @@ export class StateMachine {
           this.stateCross(this.rollAction,0.1)
          setTimeout(() => {
             this.isLocked = false;
-            this.stateCross(this.preAction,0.8)
+            this.stateCross(this.preAction,0.5)
           },650)
         }
     }
