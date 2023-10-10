@@ -4,7 +4,9 @@ export class Character {
   constructor(mixer) {
     this.loader = new GLTFLoader();
     this.mixer = mixer;
-    this.isRun = false
+    this.isRun = false;
+    this.isJump =false;
+    this.isRoll = false;
   }
 
   async loadCharacter(characterName) {
@@ -85,6 +87,7 @@ export class Character {
       this.animations[animationName],
       this.mesh
     );
+    
     if (animationName === "jump") {
       action.setLoop(LoopOnce); // 设置为仅播放一次
       // 当动画播放完成时，停止动画
