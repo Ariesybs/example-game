@@ -53,10 +53,10 @@ export class Game {
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
-    this.chooseBox = new ChooseBox(this.scene,this.camera,this.renderer);
+    this.mixer = new AnimationMixer();
+    this.chooseBox = new ChooseBox(this.scene,this.camera,this.renderer,this.mixer);
     this.characterSelected = false
     this.clock = new Clock();
-    this.mixer = new AnimationMixer();
     this.hemiLight = new HemiLight();
     this.dirLight = new DirLight();
     this.sky = new Sky(this.hemiLight, this.scene);
@@ -107,10 +107,7 @@ export class Game {
   }
 
   move(){
-    if (this.mixer) {
-      const delta = this.clock.getDelta();
-      this.mixer.update(delta);
-    }
+    
     if (this.character.isRun) {
       if (this.v < 0.7) {
         this.v += 0.05;
@@ -149,7 +146,10 @@ export class Game {
   render() {
     this.renderer.render(this.scene, this.camera);
     // 渲染逻辑
-    
+    if (this.mixer) {
+      const delta = this.clock.getDelta();
+      this.mixer.update(delta);
+    }
 
     // 继续下一帧
     requestAnimationFrame(this.render.bind(this));
