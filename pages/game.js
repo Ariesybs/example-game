@@ -46,29 +46,40 @@ export class Game {
       5000
     );
 
-    this.camera.position.set(0, 60, 250);
+    this.camera.position.set(0, 0, 250);
 
     this.renderer = new WebGLRenderer({
       antialias: true,
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
-    this.chooseBox = new ChooseBox(this.scene);
+    this.chooseBox = new ChooseBox(this.scene,this.camera,this.renderer);
+    this.characterSelected = false
     this.clock = new Clock();
     this.mixer = new AnimationMixer();
-    this.map = new Map(this.scene);
     this.hemiLight = new HemiLight();
     this.dirLight = new DirLight();
     this.sky = new Sky(this.hemiLight, this.scene);
-    this.ui = new UI("container");
-    this.v = 0;
-    this.loadCharacter("Cow");
+    this.scene.add(this.hemiLight);
+    this.scene.add(this.dirLight);
+    this.scene.add(this.sky);
+    this.scene.add(this.chooseBox)
+    this.render();
+    //玩家选择完角色后再加载地图
+    this.chooseBox.setCharacterSelectedCallback(()=>{
+      this.map = new Map(this.scene);
+      this.ui = new UI("container");
+      this.v = 0;
+      this.loadCharacter("Cow");
+    })
+    
+    
   }
   async loadCharacter(characterName) {
     this.character = new Character(this.mixer);
     await this.character.loadCharacter(characterName);
     this.characterMesh = this.character.mesh;
-
+    this.scene.add(this.characterMesh);
     this.playerController = new PlayerController(
       this.camera,
       this.renderer.domElement,
@@ -81,8 +92,8 @@ export class Game {
       this.mixer,
       this.playerController.turnController
     );
-    this.load();
-    this.render();
+    this.loadMap();
+    
   }
 
   onWindowResize = () => {
@@ -91,18 +102,11 @@ export class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   };
 
-  load() {
-    this.scene.add(this.chooseBox);
-    this.scene.add(this.hemiLight);
-    this.scene.add(this.dirLight);
+  loadMap() {
     this.scene.add(this.map);
-    this.scene.add(this.sky);
-    this.scene.add(this.characterMesh);
   }
 
-  render() {
-    this.renderer.render(this.scene, this.camera);
-    // 渲染逻辑
+  move(){
     if (this.mixer) {
       const delta = this.clock.getDelta();
       this.mixer.update(delta);
@@ -140,6 +144,12 @@ export class Game {
       playerPosition.y + 40,
       playerPosition.z
     ); // 让摄像机始终看向玩家
+  }
+
+  render() {
+    this.renderer.render(this.scene, this.camera);
+    // 渲染逻辑
+    
 
     // 继续下一帧
     requestAnimationFrame(this.render.bind(this));
