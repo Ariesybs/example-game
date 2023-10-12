@@ -32,6 +32,8 @@ export class Game {
       }
     `;
     document.head.appendChild(this.style);
+
+    
   }
 
   init() {
