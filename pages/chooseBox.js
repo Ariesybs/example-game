@@ -17,18 +17,27 @@ export class ChooseBox extends Mesh {
     this.modelList = ["BaseCharacter","BlueSoldier_Female","BlueSoldier_Male","Casual_Bald","Casual_Female",
                       "Casual_Male","Casual2_Female","Casual2_Male","Casual3_Female","Casual3_Male",
                       "Chef_Female","Chef_Hat","Chef_Male","Cow","Cowboy_Female",
-                      "Cowboy_Hair","Cowboy_Male","Doctor_Female_Old","Doctor_Female_Young","Doctor_Male_Old"];
+                      "Cowboy_Hair","Cowboy_Male","Doctor_Female_Old","Doctor_Female_Young","Doctor_Male_Old",
+                      "Doctor_Male_Young","Elf","Goblin_Female","Goblin_Male","Kimono_Female",
+                      "Kimono_Male","Knight_Golden_Female","Knight_Golden_Male","Knight_Male","Ninja_Female",
+                      "Ninja_Male","Ninja_Male_Hair","Ninja_Sand","Ninja_Sand_Female","OldClassy_Female",
+                      "OldClassy_Male","Pirate_Female","Pirate_Male","Pug","Soldier_Female",
+                      "Soldier_Male","Suit_Female","Suit_Male","Viking_Female","Viking_Male",
+                      "VikingHelmet","Witch","Wizard","Worker_Female","Worker_Male","Zombie_Female","Zombie_Male"];
     this.curPage = 0;
     this.modelGrid = [];
-    this.selectedMesh = null
-    this.preSelectedMesh = null
+    this.selectedModelName = null
+    this.preSelectedModleName = null
     this.curCastedMesh = null
     this.preCastedMesh = null
     this.preOutLine = null
     this.previewModel = null
+    this.arrow_l = null
+    this.arrow_r = null
+    this.start = null
     this.raycaster = new Raycaster()
     this.mouse = new Vector2() 
-    this.geometry = new BoxGeometry(this.width, this.height, 1);
+    this.geometry = new RoundedBoxGeometry(this.width, this.height, 1,4,2);
     this.material = new MeshBasicMaterial({
       color: 0x333333,
       opacity: 0.8,
@@ -65,28 +74,34 @@ export class ChooseBox extends Mesh {
         cell.position.set(cellX, cellY, 1);
         cell.userData.class = "character"
         this.scene.add(cell);
+        
+        const edges = new EdgesGeometry(cell.geometry);
+        //加入描边
+        const outline = new LineSegments(edges, new LineBasicMaterial({ color: 0x00ff00,linewidth:2}));
+        outline.renderOrder = 1; // 保证描边在对象之上渲染
+        outline.visible = false
+        cell.add(outline);
+        cell.outline = outline
         this.modelGrid.push(cell);
-
-        const modelName = this.modelList[i*gridCols+j]
-        cell.modelName = modelName
         
       }
     }
+    this.updateCellsData()
 
     //创建开始游戏按钮
-    const startGeo = new RoundedBoxGeometry(
-      40,
-      8,
-      1,
-      4,
-      20
-    );
-    const startMat = new MeshBasicMaterial({ color: 0xffffff });
-    const start = new Mesh(startGeo, startMat);
-    start.position.set(-38, -35, 5);
-    start.userData.class = "start"
-    this.start = start
-    this.scene.add(start);
+    this.textureLoader.load('/img/start.png',(texture)=>{
+      const startGeo = new BoxGeometry(
+        23,
+        8,
+      );
+      const startMat = new MeshBasicMaterial({ transparent: true,map: texture });
+      const start = new Mesh(startGeo, startMat);
+      
+      start.position.set(-38, -35, 0);
+      start.userData.class = "start"
+      this.start = start
+      this.scene.add(start);
+    })
 
     //创建翻页按钮
 
@@ -111,40 +126,12 @@ export class ChooseBox extends Mesh {
       arrow_l.userData.class = "arrow"
       arrow_l.name = "arrow_l"
       this.arrow_l = arrow_l
+      arrow_l.visible = false
       this.scene.add(arrow_l);
     });
 
  
-    // 创建文本元素
-    const textElement = document.createElement('div');
-    this.modelTextElement = textElement
-    textElement.innerHTML = ''; // 替换为你的模型名称
-    textElement.style.position = 'absolute';
-    textElement.style.top = '50px'; // 调整文本在页面上的位置
-    textElement.style.left = '45%';
-    textElement.style.color = 'black';
-    // 使用CSS样式来调整字体大小和加粗
-    textElement.style.fontFamily = 'Arial'; // 设置字体
-    textElement.style.fontSize = '40px'; // 设置字体大小
-    textElement.style.fontWeight = 'bold'; // 设置为加粗字体
-    document.body.appendChild(textElement);
-
-    // 创建文本元素
-    const previewTextElement = document.createElement('div');
-    this.previewTextElement = previewTextElement
-    previewTextElement.innerHTML = ''; // 替换为你的模型名称
-    previewTextElement.style.position = 'absolute';
-    previewTextElement.style.top = '20%'; // 调整文本在页面上的位置
-    previewTextElement.style.left = '30%';
-    previewTextElement.style.color = 'white';
-    // 使用CSS样式来调整字体大小和加粗
-    previewTextElement.style.fontFamily = 'Arial'; // 设置字体
-    previewTextElement.style.fontSize = '40px'; // 设置字体大小
-    previewTextElement.style.fontWeight = 'bold'; // 设置为加粗字体
-    document.body.appendChild(previewTextElement);
   }
-  
-
   
 
   initInteraction(){
@@ -170,10 +157,17 @@ export class ChooseBox extends Mesh {
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
     // 执行射线检测
-    const intersects = this.raycaster.intersectObjects([...this.modelGrid,this.arrow_l,this.arrow_r,this.start]);
+    const castedArray =[...this.modelGrid]
+    if(this.arrow_l !== null) castedArray.push(this.arrow_l)
+    if(this.arrow_r !== null) castedArray.push(this.arrow_r)
+    if(this.start !== null) castedArray.push(this.start)
+
+    const intersects = this.raycaster.intersectObjects(castedArray);
     if (intersects.length > 0) {
       // 获取被选中的mesh
+
       this.curCastedMesh = intersects[0].object;
+      if(!this.curCastedMesh.visible) return
       if(this.preCastedMesh !== this.curCastedMesh){
         if(this.preCastedMesh!==null){
           this.preCastedMesh.scale.set(1,1,1)
@@ -182,14 +176,14 @@ export class ChooseBox extends Mesh {
         this.curCastedMesh.scale.set(s,s,s)
         this.playAudio("choose")
         this.preCastedMesh = this.curCastedMesh
-        this.modelTextElement.innerHTML = this.curCastedMesh.modelName
+        //this.modelTextElement.innerHTML = this.curCastedMesh.modelName
       }
     }else {
       if(this.preCastedMesh!==null){
         this.preCastedMesh.scale.set(1,1,1)
         this.preCastedMesh = null
         this.curCastedMesh = null
-        this.modelTextElement.innerHTML = ""
+        //this.modelTextElement.innerHTML = ""
       }
       
     }
@@ -197,16 +191,16 @@ export class ChooseBox extends Mesh {
 
   onMouseClick(){
     //未检测到物体，返回
-    if(!this.curCastedMesh) return
-    if(this.selectedMesh !== this.curCastedMesh && this.curCastedMesh !== null && this.curCastedMesh.userData.class === "character"){
-      this.selectedMesh = this.curCastedMesh
+    if(!this.curCastedMesh || !this.curCastedMesh.visible) return
+    if(this.selectedModelName !== this.curCastedMesh.name && this.curCastedMesh !== null && this.curCastedMesh.userData.class === "character"){
+      this.selectedModelName = this.curCastedMesh.name
       //加载模型
-      this.loader.load(`/models/character/${this.selectedMesh.modelName}.gltf`,(gltf)=>{
+      this.loader.load(`/models/character/${this.selectedModelName}.gltf`,(gltf)=>{
         const model = gltf.scene;
         const animations = gltf.animations;
+        this.cheerAnimation = animations[14]
         // 创建一个动画混合器
-        const idleAction = this.mixer.clipAction(animations[15],model);
-        console.log(idleAction)
+        const idleAction = this.mixer.clipAction(animations[2],model);
         idleAction.play()
         const s = 15
         model.scale.set(s,s,s)
@@ -216,32 +210,42 @@ export class ChooseBox extends Mesh {
         }
         this.previewModel = model
         setTimeout(()=>{
-          this.previewTextElement.innerHTML = this.selectedMesh.modelName
+          //this.previewTextElement.innerHTML = this.selectedMesh.modelName
           this.scene.add(model)
         },100)
         
       })
-      if(this.selectedMesh !== this.preSelectedMesh && this.preSelectedMesh!==null){
-        this.preSelectedMesh.remove(this.preOutLine)
-      }
+      this.checkSelected()
       this.playAudio("selected")
-      this.addOutline(this.selectedMesh)
-      this.preSelectedMesh = this.selectedMesh
+      this.preSelectedModleName = this.selectedModelName
       // 翻页
     }else if(this.curCastedMesh.userData.class === "arrow"){
       this.playAudio("changePage")
-      
+      if(this.curCastedMesh.name === "arrow_l" && this.curPage >0){
+        this.curPage-=1
+        
+      }else if(this.curCastedMesh.name === "arrow_r" && this.curPage <this.modelList.length/20-1){
+        this.curPage += 1
+        
+      }
+      if(this.curPage <= 0){
+        this.arrow_l.visible = false
+      }else if(this.curPage >=this.modelList.length/20-1){
+        this.arrow_r.visible = false
+      }else{
+        this.arrow_l.visible = true
+        this.arrow_r.visible = true
+      }
+      this.updateCellsData()
+      console.log(this.curPage)
+
+    }else if(this.curCastedMesh.userData.class === "start"){
+      this.playAudio("gameStart")
+      this.mixer.stopAllAction();
+      this.mixer.clipAction(this.cheerAnimation,this.previewModel).reset().play()
     }
     
   }
-  // 在构造函数中创建一个辅助函数来绘制描边
- addOutline(mesh) {
-  const edges = new EdgesGeometry(mesh.geometry);
-  const outline = new LineSegments(edges, new LineBasicMaterial({ color: 0x00ff00,linewidth:2}));
-  outline.renderOrder = 1; // 保证描边在对象之上渲染
-  mesh.add(outline);
-  this.preOutLine = outline
-}
 
 playAudio(name){
   this.audioLoader.load(`/audio/${name}.mp3`,(buffer)=>{
@@ -257,12 +261,35 @@ playAudio(name){
   })
 }
 
-updateCellsData(){
-
+checkSelected(){
+  if(!this.selectedModelName)return
+  this.modelGrid.forEach((cell)=>{
+    console.log(cell.outline)
+    if(cell.name === this.selectedModelName){
+      cell.outline.visible = true
+    }else{
+      cell.outline.visible = false
+    }
+  })
 }
 
-
-
+updateCellsData(){
+  let index = this.curPage * 20
+  for (let i = 0; i <5; i++) { 
+    for (let j = 0; j < 4; j++) {
+      const cell = this.modelGrid[i*4+j]
+      if(index < this.modelList.length){
+        cell.visible = true
+        cell.name = this.modelList[index]
+        index++
+      }else{
+        cell.visible = false
+      }
+    }
+  }
+  this.checkSelected()
+    
+}
   selectCharacter(character) {
     // 角色选择逻辑...
 
