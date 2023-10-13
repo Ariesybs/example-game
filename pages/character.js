@@ -24,7 +24,7 @@ export class Character {
   createCharacter(characterName) {
     return new Promise((resolve, reject) => {
       this.loader.load(
-        `/models/${characterName}.gltf`,
+        `/models/character/${characterName}.gltf`,
         (gltf) => {
           const model = gltf.scene;
 

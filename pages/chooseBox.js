@@ -1,9 +1,13 @@
 import { Mesh, BoxGeometry, MeshBasicMaterial,Raycaster,Vector2,AudioLoader,LineSegments,LineBasicMaterial,EdgesGeometry,TextureLoader } from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry";
+import  {FontLoader} from "three/examples/jsm/loaders/FontLoader"
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+
 import {GLTFLoader} from "three/examples/jsm/loaders/GLTFLoader";
 export class ChooseBox extends Mesh {
   constructor(scene,camera,renderer,mixer) {
     super();
+    this.components = []
     this.scene = scene;
     this.camera = camera
     this.renderer = renderer
@@ -11,6 +15,7 @@ export class ChooseBox extends Mesh {
     this.audioLoader = new AudioLoader()
     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
     this.textureLoader = new TextureLoader()
+    this.fontLoader = new FontLoader()
     this.loader = new GLTFLoader()
     this.width = 150;
     this.height = 105;
@@ -25,6 +30,7 @@ export class ChooseBox extends Mesh {
                       "Soldier_Male","Suit_Female","Suit_Male","Viking_Female","Viking_Male",
                       "VikingHelmet","Witch","Wizard","Worker_Female","Worker_Male","Zombie_Female","Zombie_Male"];
     this.curPage = 0;
+    this.mainColor = 0xe5bd57
     this.modelGrid = [];
     this.selectedModelName = null
     this.preSelectedModleName = null
@@ -35,6 +41,7 @@ export class ChooseBox extends Mesh {
     this.arrow_l = null
     this.arrow_r = null
     this.start = null
+    this.callBack = null
     this.raycaster = new Raycaster()
     this.mouse = new Vector2() 
     this.geometry = new RoundedBoxGeometry(this.width, this.height, 1,4,2);
@@ -45,7 +52,7 @@ export class ChooseBox extends Mesh {
     });
     this.onCharacterSelected = null; // 初始化回调函数为null
     this.initChooseArea();
-    this.initInteraction();
+    this.initInteraction();  
   }
 
   initChooseArea() {
@@ -69,17 +76,18 @@ export class ChooseBox extends Mesh {
           4,
           20
         );
-        const cellMaterial = new MeshBasicMaterial({ color: 0x888888 });
+        const cellMaterial = new MeshBasicMaterial({ color: 0xe8f0fd });
         const cell = new Mesh(cellGeometry, cellMaterial);
         cell.position.set(cellX, cellY, 1);
         cell.userData.class = "character"
+        this.components.push(cell)
         this.scene.add(cell);
         
         const edges = new EdgesGeometry(cell.geometry);
         //加入描边
-        const outline = new LineSegments(edges, new LineBasicMaterial({ color: 0x00ff00,linewidth:2}));
+        const outline = new LineSegments(edges, new LineBasicMaterial({ color: this.mainColor,linewidth:2}));
         outline.renderOrder = 1; // 保证描边在对象之上渲染
-        outline.visible = false
+        //outline.visible = false
         cell.add(outline);
         cell.outline = outline
         this.modelGrid.push(cell);
@@ -94,12 +102,13 @@ export class ChooseBox extends Mesh {
         23,
         8,
       );
-      const startMat = new MeshBasicMaterial({ transparent: true,map: texture });
+      const startMat = new MeshBasicMaterial({transparent: true,map: texture });
       const start = new Mesh(startGeo, startMat);
       
       start.position.set(-38, -35, 0);
       start.userData.class = "start"
       this.start = start
+      this.components.push(start)
       this.scene.add(start);
     })
 
@@ -114,6 +123,7 @@ export class ChooseBox extends Mesh {
       arrow_r.userData.class = "arrow"
       arrow_r.name = "arrow_r"
       this.arrow_r = arrow_r
+      this.components.push(arrow_r)
       this.scene.add(arrow_r);
     });
 
@@ -127,8 +137,29 @@ export class ChooseBox extends Mesh {
       arrow_l.name = "arrow_l"
       this.arrow_l = arrow_l
       arrow_l.visible = false
+      this.components.push(arrow_l)
       this.scene.add(arrow_l);
     });
+
+    /**文字 */
+    this.fontLoader.load('/font/gentilis_bold.typeface.json',(font)=>{
+      // 创建一个文字几何体
+      const textGeometry = new TextGeometry("Your Character", {
+        font: font, // 字体路径
+        size: 6, // 文字大小
+        height: 1, // 文字高度
+      });
+
+      // 创建一个文字材质
+      const textMaterial = new MeshBasicMaterial({ color: this.mainColor });
+      // 创建文字mesh
+      const textMesh = new Mesh(textGeometry, textMaterial);
+      this.titleText = textMesh
+      textMesh.position.set(-65,40,1)
+      this.components.push(textMesh)
+      this.scene.add(textMesh);
+    })
+
 
  
   }
@@ -136,17 +167,23 @@ export class ChooseBox extends Mesh {
 
   initInteraction(){
     // 添加鼠标移动事件监听
-    window.addEventListener('mousemove', (event) => {
-      this.onMouseMove(event);
-    });
+    window.addEventListener('mousemove', this.handleMouseMove);
+    
 
-    window.addEventListener("click",()=>{
-      this.onMouseClick()
-    })
+    window.addEventListener("click",this.handleMouseClick)
+  }
+
+  handleMouseMove = (event) => {
+    this.onMouseMove(event);
+  };
+
+  handleMouseClick = ()=>{
+    this.onMouseClick()
   }
 
   // 处理鼠标移动事件
   onMouseMove(event) {
+    console.log("move")
     // 计算鼠标点击的位置
     const canvasBounds = this.renderer.domElement.getBoundingClientRect();
     const x = ((event.clientX - canvasBounds.left) / canvasBounds.width) * 2 - 1;
@@ -176,14 +213,12 @@ export class ChooseBox extends Mesh {
         this.curCastedMesh.scale.set(s,s,s)
         this.playAudio("choose")
         this.preCastedMesh = this.curCastedMesh
-        //this.modelTextElement.innerHTML = this.curCastedMesh.modelName
+
       }
     }else {
       if(this.preCastedMesh!==null){
         this.preCastedMesh.scale.set(1,1,1)
         this.preCastedMesh = null
-        this.curCastedMesh = null
-        //this.modelTextElement.innerHTML = ""
       }
       
     }
@@ -199,18 +234,19 @@ export class ChooseBox extends Mesh {
         const model = gltf.scene;
         const animations = gltf.animations;
         this.cheerAnimation = animations[14]
+        this.cheerAction = this.mixer.clipAction(animations[14],model)
         // 创建一个动画混合器
-        const idleAction = this.mixer.clipAction(animations[2],model);
-        idleAction.play()
+        this.idleAction = this.mixer.clipAction(animations[2],model);
+        this.idleAction.play()
         const s = 15
         model.scale.set(s,s,s)
         model.position.set(-35,-25,10)
+        this.components.push(model)
         if(this.previewModel !== null){
           this.scene.remove(this.previewModel)
         }
         this.previewModel = model
         setTimeout(()=>{
-          //this.previewTextElement.innerHTML = this.selectedMesh.modelName
           this.scene.add(model)
         },100)
         
@@ -240,9 +276,17 @@ export class ChooseBox extends Mesh {
       console.log(this.curPage)
 
     }else if(this.curCastedMesh.userData.class === "start"){
+      if(!this.selectedModelName) return
       this.playAudio("gameStart")
-      this.mixer.stopAllAction();
-      this.mixer.clipAction(this.cheerAnimation,this.previewModel).reset().play()
+      this.cheerAction.reset().play();
+      this.cheerAction.setEffectiveTimeScale(1).setEffectiveWeight(1);
+      this.idleAction.crossFadeTo(this.cheerAction, 0.3);
+      window.removeEventListener('mousemove', this.handleMouseMove);
+      window.removeEventListener("click",this.handleMouseClick)
+      setTimeout(()=>{
+        this.callBack(this.selectedModelName)
+      },1000)
+      
     }
     
   }
@@ -264,11 +308,11 @@ playAudio(name){
 checkSelected(){
   if(!this.selectedModelName)return
   this.modelGrid.forEach((cell)=>{
-    console.log(cell.outline)
+    
     if(cell.name === this.selectedModelName){
-      cell.outline.visible = true
+      cell.outline.material.color.set(0x00ff00) 
     }else{
-      cell.outline.visible = false
+      cell.outline.material.color.set(this.mainColor)
     }
   })
 }
@@ -281,6 +325,7 @@ updateCellsData(){
       if(index < this.modelList.length){
         cell.visible = true
         cell.name = this.modelList[index]
+        cell.material.map = this.textureLoader.load(`/img/avatar/${cell.name}.png`)
         index++
       }else{
         cell.visible = false
@@ -290,19 +335,13 @@ updateCellsData(){
   this.checkSelected()
     
 }
-  selectCharacter(character) {
-    // 角色选择逻辑...
 
-    // 如果已经设置了回调函数，则调用它
-    if (this.onCharacterSelected) {
-      this.onCharacterSelected();
-    }
-  }
+setCallBack(callBack){
+  this.callBack = callBack
+}
 
-  // 设置回调函数
-  setCharacterSelectedCallback(callback) {
-    this.onCharacterSelected = callback;
-  }
+   
+  
 
 
 }

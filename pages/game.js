@@ -68,11 +68,16 @@ export class Game {
     this.scene.add(this.chooseBox)
     this.render();
     //玩家选择完角色后再加载地图
-    this.chooseBox.setCharacterSelectedCallback(()=>{
+    this.chooseBox.setCallBack((name)=>{
+      this.chooseBox.components.forEach((component)=>{
+        this.scene.remove(component)
+      })
+      this.scene.remove(this.chooseBox)
+      this.chooseBox = null
       this.map = new Map(this.scene);
       this.ui = new UI("container");
       this.v = 0;
-      this.loadCharacter("Cow");
+      this.loadCharacter(name);
     })
     
     
@@ -81,6 +86,7 @@ export class Game {
     this.character = new Character(this.mixer);
     await this.character.loadCharacter(characterName);
     this.characterMesh = this.character.mesh;
+    this.dirLight.target = this.characterMesh
     this.scene.add(this.characterMesh);
     this.playerController = new PlayerController(
       this.camera,
@@ -109,7 +115,6 @@ export class Game {
   }
 
   move(){
-    
     if (this.character.isRun) {
       if (this.v < 0.7) {
         this.v += 0.05;
@@ -151,6 +156,11 @@ export class Game {
     if (this.mixer) {
       const delta = this.clock.getDelta();
       this.mixer.update(delta);
+    }
+    if(this.characterMesh){
+      const characterPosition = this.characterMesh.position.clone()
+      this.dirLight.target.position.copy(characterPosition)
+      this.move()
     }
 
     // 继续下一帧
