@@ -7,6 +7,7 @@ import {
   Clock,
   AnimationMixer,
   Vector3,
+  MathUtils,
 } from "three";
 import { HemiLight, DirLight } from "./light";
 import { Map } from "./map";
@@ -32,15 +33,14 @@ export class Game {
       }
     `;
     document.head.appendChild(this.style);
-
-    
   }
 
   init() {
+    this.loadFinished = false;
     this.scene = new Scene();
     this.scene.background = new Color().setHSL(0.6, 0, 1);
     this.scene.fog = new Fog(this.scene.background, 1, 5000);
-
+    this.mountedFunction = null; // 初始挂载函数为 null
     this.camera = new PerspectiveCamera(
       30,
       window.innerWidth / window.innerHeight,
@@ -56,8 +56,14 @@ export class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.mixer = new AnimationMixer();
-    this.chooseBox = new ChooseBox(this.scene,this.camera,this.renderer,this.mixer);
-    this.characterSelected = false
+    this.chooseBox = new ChooseBox(
+      this.scene,
+      this.camera,
+      this.renderer,
+      this.mixer,
+      this.mountedFunction
+    );
+    this.start = false;
     this.clock = new Clock();
     this.hemiLight = new HemiLight();
     this.dirLight = new DirLight();
@@ -65,43 +71,58 @@ export class Game {
     this.scene.add(this.hemiLight);
     this.scene.add(this.dirLight);
     this.scene.add(this.sky);
-    this.scene.add(this.chooseBox)
+    this.scene.add(this.chooseBox);
     this.render();
     //玩家选择完角色后再加载地图
-    this.chooseBox.setCallBack((name)=>{
-      this.chooseBox.components.forEach((component)=>{
-        this.scene.remove(component)
-      })
-      this.scene.remove(this.chooseBox)
-      this.chooseBox = null
-      this.map = new Map(this.scene);
-      this.ui = new UI("container");
-      this.v = 0;
-      this.loadCharacter(name);
-    })
-    
-    
+    this.chooseBox.setCallBack((name) => {
+      let flag = false;
+      this.mountedFunction = () => {
+        if (!flag) {
+          this.camera.rotation.x += 0.01;
+        } else {
+          this.camera.rotation.x -= 0.01;
+          console.log(this.camera.rotation.x);
+          if (this.camera.rotation.x < 0) {
+            this.mountedFunction = null;
+            this.loadFinished = true;
+            this.playerController = new PlayerController(
+              this.camera,
+              this.renderer.domElement,
+              this.character,
+              this.mixer
+            );
+          }
+        }
+        if (this.camera.rotation.x > 1) flag = true;
+      };
+
+      setTimeout(() => {
+        this.chooseBox.components.forEach((component) => {
+          this.scene.remove(component);
+        });
+        this.scene.remove(this.chooseBox);
+        this.chooseBox = null;
+
+        this.map = new Map(this.scene);
+        this.ui = new UI("container");
+        this.v = 0;
+        this.loadCharacter(name);
+      }, 1000);
+    });
   }
   async loadCharacter(characterName) {
     this.character = new Character(this.mixer);
     await this.character.loadCharacter(characterName);
     this.characterMesh = this.character.mesh;
-    this.dirLight.target = this.characterMesh
+    this.dirLight.target = this.characterMesh;
     this.scene.add(this.characterMesh);
-    this.playerController = new PlayerController(
-      this.camera,
-      this.renderer.domElement,
-      this.character,
-      this.mixer
-    );
+
     this.gamepadManager = new GamepadManager(
       this.character,
       this.camera,
-      this.mixer,
-      this.playerController.turnController
+      this.mixer
     );
     this.loadMap();
-    
   }
 
   onWindowResize = () => {
@@ -114,7 +135,7 @@ export class Game {
     this.scene.add(this.map);
   }
 
-  move(){
+  move() {
     if (this.character.isRun) {
       if (this.v < 0.7) {
         this.v += 0.05;
@@ -139,9 +160,12 @@ export class Game {
     playerPosition.add(moveDirection);
 
     //摄像机时时跟随
-    this.playerController.turnController.target.copy(
-      new Vector3(playerPosition.x, playerPosition.y + 40, playerPosition.z)
-    );
+    if (this.playerController) {
+      this.playerController.turnController.target.copy(
+        new Vector3(playerPosition.x, playerPosition.y + 40, playerPosition.z)
+      );
+    }
+
     this.camera.position.add(moveDirection); //lerp(this.camera.position.copy().add(moveDirection), 0.3); // 平滑过渡摄像机位置
     this.camera.lookAt(
       playerPosition.x,
@@ -157,10 +181,13 @@ export class Game {
       const delta = this.clock.getDelta();
       this.mixer.update(delta);
     }
-    if(this.characterMesh){
-      const characterPosition = this.characterMesh.position.clone()
-      this.dirLight.target.position.copy(characterPosition)
-      this.move()
+    if (this.loadFinished) {
+      const characterPosition = this.characterMesh.position.clone();
+      this.dirLight.target.position.copy(characterPosition);
+      this.move();
+    }
+    if (this.mountedFunction) {
+      this.mountedFunction();
     }
 
     // 继续下一帧

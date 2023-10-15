@@ -7,8 +7,5 @@ export class TurnController extends OrbitControls {
     this.maxPolarAngle = Math.PI / 2; // 最大极角
     this.minAzimuthAngle = -Infinity; // 最小方位角
     this.maxAzimuthAngle = Infinity; // 最大方位角
-    
   }
-
-  
 }
