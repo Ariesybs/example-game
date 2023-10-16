@@ -1,12 +1,11 @@
 import * as THREE from "three";
 import { FirstPersonControls } from "three/examples/jsm/controls/FirstPersonControls";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { OutlinePass } from "three/examples/jsm/postprocessing/OutlinePass.js";
-import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass";
-import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader.js";
+import { PostProcessing } from "./postprocessing";
+import { Light } from "./light";
+import { Control } from "./control";
+import { Map } from "./map";
+import { Physics } from "./physics";
+
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 export class Game {
   constructor() {
@@ -20,12 +19,14 @@ export class Game {
     );
     this.camera.position.set(0, 10, -10);
     this.renderer = new THREE.WebGLRenderer();
+    this.light = new Light(this.scene)
     this.gltfLoader = new GLTFLoader();
     this.gltfLoader.setPath("/KitchenBattle/models/foods/");
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById("container").appendChild(this.renderer.domElement);
     document.title = "Kitchen Battle";
     document.body.style.overflow = "hidden";
+    
     // this.controls = new FirstPersonControls(
     //   this.camera,
     //   this.renderer.domElement
@@ -35,63 +36,24 @@ export class Game {
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
-    //高亮后处理
-    this.composer = new EffectComposer(this.renderer);
-    this.renderPass = new RenderPass(this.scene, this.camera);
-    this.composer.addPass(this.renderPass);
-    this.outlinePass = new OutlinePass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      this.scene,
-      this.camera
-    );
-    this.composer.addPass(this.outlinePass);
-    /**参数调节 */
-    this.outlinePass.renderToScreen = true;
-    this.outlinePass.edgeStrength = 5; // 粗
-    //this.outlinePass.visibleEdgeColor.set("green"); // 设置显示的颜色
-    this.outlinePass.selectedObjects = [];
-    /**抗锯齿处理 */
-    this.fxaaPass = new ShaderPass(FXAAShader);
-    const pixelRatio = this.renderer.getPixelRatio();
-    this.fxaaPass.material.uniforms["resolution"].value.x =
-      1 / (window.innerWidth * pixelRatio);
-    this.fxaaPass.material.uniforms["resolution"].value.y =
-      1 / (window.innerHeight * pixelRatio);
-    this.composer.addPass(this.fxaaPass);
-
-    //材质通道处理
-    this.outputPass = new OutputPass();
-    this.composer.addPass(this.outputPass);
+    this.postProcessing = new PostProcessing(this.renderer,this.scene,this.camera)
 
     // 创建 OrbitControls
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true; // 启用阻尼效果，使摄像机平滑移动
-    this.controls.dampingFactor = 0.05; // 调整阻尼因子
-
-    // 添加环境光
-    this.ambientLight = new THREE.AmbientLight(0x404040); // 设置环境光颜色
-    this.scene.add(this.ambientLight);
-
-    // 添加直射光
-    this.directionalLight = new THREE.DirectionalLight(0xffffff, 3); // 设置直射光颜色和强度
-    this.directionalLight.position.set(10, 10, 10); // 设置光源位置
-    this.scene.add(this.directionalLight);
+    this.control = new Control(this.camera,this.renderer)
+    //创建cannon物理引擎
+    this.physics = new Physics(this.scene)
 
     // 创建地板
-    // this.floorGeometry = new THREE.BoxGeometry(10, 10, 10); // 地板的大小
-    // this.floorMaterial = new THREE.MeshBasicMaterial({
-    //   color: 0x808080,
-    //   side: THREE.DoubleSide,
-    // }); // 地板的材质
-    // this.floor = new THREE.Mesh(this.floorGeometry, this.floorMaterial);
-    // this.floor.position.set(0, 0, 0);
-    // this.floor.name = "cube";
-    // this.floor.rotation.x = Math.PI / 2; // 使地板水平
-    // this.scene.add(this.floor);
+    this.floor = new Map(this.scene)
+    this.floorPhysicalBody = this.physics.addPhysics(this.floor,0)
+    this.scene.add(this.floor)
     this.loadModelsName().then(() => {
       this.index = 0;
-      this.loadModel(this.index);
+      this.loadModel(this.index)
+      
     });
+
+
 
     window.addEventListener("mousedown", this.handleMouseDown);
     window.addEventListener("resize", this.handleWinResize);
@@ -99,13 +61,18 @@ export class Game {
 
     this.animate();
   }
+
+
   loadModel = async (index) => {
     this.gltfLoader.load(this.modelsName[index], (gltf) => {
       const food = gltf.scene;
+      
       if (this.food) this.scene.remove(this.food);
       this.food = food;
       const s = 10;
+      food.position.set(0,10,0)
       food.scale.set(s, s, s);
+      this.foodPhysicalBody = this.physics.addPhysics(this.food,1000)
       this.scene.add(food);
     });
   };
@@ -116,9 +83,9 @@ export class Game {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObject(this.food);
     if (intersects.length > 0) {
-      this.outlinePass.selectedObjects = [intersects[0].object];
+      this.postProcessing.setOutLine([intersects[0].object])
     } else {
-      this.outlinePass.selectedObjects = [];
+      this.postProcessing.setOutLine([]);
     }
   };
 
@@ -153,7 +120,6 @@ export class Game {
 
       const data = await response.json();
       this.modelsName = data.files;
-      console.log(this.modelsName);
       // 在这里处理 API 返回的数据
     } catch (error) {
       console.error("发生错误：", error);
@@ -161,13 +127,18 @@ export class Game {
   };
 
   animate() {
-    this.controls.update();
+    this.control.orbitControls.update();
 
-    if (this.composer) {
-      this.composer.render();
+    if (this.postProcessing) {
+      this.postProcessing.render();
     } else {
       this.renderer.render(this.scene, this.camera);
     }
+    if(this.foodPhysicalBody){
+      this.food.position.copy(this.foodPhysicalBody.position)
+      this.food.quaternion.copy(this.foodPhysicalBody.quaternion)
+    }
+    this.physics.update()
 
     requestAnimationFrame(this.animate.bind(this));
   }
