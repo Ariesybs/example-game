@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "cannon": "^0.6.2",
+    "cannon-es": "^0.20.0",
     "fs": "^0.0.1-security",
     "next": "13.5.4",
     "react": "^18",

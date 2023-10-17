@@ -5,7 +5,7 @@ import { Light } from "./light";
 import { Control } from "./control";
 import { Map } from "./map";
 import { Physics } from "./physics";
-
+import * as CANNON from "cannon-es"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 export class Game {
   constructor() {
@@ -17,7 +17,8 @@ export class Game {
       0.1,
       1000
     );
-    this.camera.position.set(0, 10, -10);
+    this.clock = new THREE.Clock()
+    this.camera.position.set(0, -5, -20);
     this.renderer = new THREE.WebGLRenderer();
     this.light = new Light(this.scene)
     this.gltfLoader = new GLTFLoader();
@@ -45,8 +46,9 @@ export class Game {
 
     // 创建地板
     this.floor = new Map(this.scene)
-    this.floorPhysicalBody = this.physics.addPhysics(this.floor,0)
+    //this.floorPhysicalBody = this.physics.addPhysics(this.floor,0)
     this.scene.add(this.floor)
+
     this.loadModelsName().then(() => {
       this.index = 0;
       this.loadModel(this.index)
@@ -65,14 +67,15 @@ export class Game {
 
   loadModel = async (index) => {
     this.gltfLoader.load(this.modelsName[index], (gltf) => {
-      const food = gltf.scene;
+      const food = gltf.scene.children[0];
       
       if (this.food) this.scene.remove(this.food);
       this.food = food;
       const s = 10;
       food.position.set(0,10,0)
       food.scale.set(s, s, s);
-      this.foodPhysicalBody = this.physics.addPhysics(this.food,1000)
+      this.foodPhysicalBody = this.physics.addPhysics(this.food,5)
+      console.log(food)
       this.scene.add(food);
     });
   };
@@ -84,6 +87,8 @@ export class Game {
     const intersects = this.raycaster.intersectObject(this.food);
     if (intersects.length > 0) {
       this.postProcessing.setOutLine([intersects[0].object])
+      
+      this.foodPhysicalBody.applyForce(new CANNON.Vec3(0,10000,0),new CANNON.Vec3(0,0,0))
     } else {
       this.postProcessing.setOutLine([]);
     }
@@ -138,7 +143,7 @@ export class Game {
       this.food.position.copy(this.foodPhysicalBody.position)
       this.food.quaternion.copy(this.foodPhysicalBody.quaternion)
     }
-    this.physics.update()
+    this.physics.update(this.clock.getDelta())
 
     requestAnimationFrame(this.animate.bind(this));
   }
