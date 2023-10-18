@@ -1,114 +1,113 @@
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { LoopOnce,Vector3 } from "three";
+import { PlayerController } from "./playerController";
+import { GamepadManager } from "./gamepadManager";
+import * as CANNON from "cannon-es";
 export class Character {
-  constructor(mixer,camera) {
+  constructor(mixer,camera,scene,physics,characterName) {
     this.loader = new GLTFLoader();
     this.mixer = mixer;
-    this.camera = camera
+    this.camera = camera;
+    this.scene = scene;
+    this.physics = physics
     this.v= 0
     this.isRun = false;
     this.isJump =false;
     this.isRoll = false;
+    this.loadCharacter(characterName)
+  }
+
+  init(){
+    // 创建胶囊体
+    const radius = 5;
+    const height = 10;
+    const mass = 1;
+    const body = new CANNON.Body({ mass });
+    const shape = new CANNON.Cylinder(radius, radius, height, 20);
+    body.addShape(shape);
+    body.position.copy(new CANNON.Vec3(0,-30,0));
+    this.physics.world.addBody(body);
+
+    // 将角色的碰撞体添加到物理类
+    this.physics.addCharacterBody(body);
   }
 
   async loadCharacter(characterName) {
-    try {
-      const data = await this.createCharacter(characterName);
 
-      this.mesh = data.mesh;
-      this.animations = data.animations;
-      this.playAnimation("idle");
-    } catch (error) {
-      console.error("Error loading character:", error);
-    }
-  }
+    await this.loader.load(
+      `/models/character/${characterName}.gltf`,
+      (gltf) => {
+        const model = gltf.scene;
 
-  createCharacter(characterName) {
-    return new Promise((resolve, reject) => {
-      this.loader.load(
-        `/models/character/${characterName}.gltf`,
-        (gltf) => {
-          const model = gltf.scene;
-
-          // 遍历模型的所有子元素，为其材质启用阴影接收
-          model.traverse((child) => {
-            if (child.isMesh) {
-              child.castShadow = true; // 启用投射阴影
-              child.receiveShadow = true; // 启用接收阴影
-            }
-          });
-          const mesh = model.children[0];
-          if (mesh) {
-            const s = 8;
-            mesh.scale.set(s, s, s);
-            mesh.position.y = -30;
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            const state = [
-              "die",
-              "mad",
-              "idle",
-              "jump",
-              "pick",
-              "attack_sword",
-              "hit",
-              "roll",
-              "run",
-              "run_gun",
-              "shoot",
-              "sit_down",
-              "sit_up",
-              "throw",
-              "cheer",
-              "walk",
-              "walk_gun",
-            ];
-            const animations = {};
-            for (let i = 0; i < gltf.animations.length; i++) {
-              animations[state[i]] = gltf.animations[i];
-            }
-
-            const data = {
-              mesh: mesh,
-              animations: animations,
-            };
-            resolve(data); // 模型加载成功，解析 Promise 并传递模型与动画
-          } else {
-            reject(new Error("Failed to load character model."));
+        // 遍历模型的所有子元素，为其材质启用阴影接收
+        model.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true; // 启用投射阴影
+            child.receiveShadow = true; // 启用接收阴影
           }
-        },
-        undefined,
-        reject
-      );
-    });
-  }
+        });
+       this.model = model.children[0];
+        if (this.model) {
+          const s = 8;
+          this.model.scale.set(s, s, s);
+          this.model.position.y = -30;
+          this.model.castShadow = true;
+          this.model.receiveShadow = true;
+          const state = [
+            "die",
+            "mad",
+            "idle",
+            "jump",
+            "pick",
+            "attack_sword",
+            "hit",
+            "roll",
+            "run",
+            "run_gun",
+            "shoot",
+            "sit_down",
+            "sit_up",
+            "throw",
+            "cheer",
+            "walk",
+            "walk_gun",
+          ];
+          this.animations = {};
+          for (let i = 0; i < gltf.animations.length; i++) {
+            this.animations[state[i]] = gltf.animations[i];
+          }
+          this.mixer.clipAction(
+          this.animations["idle"],
+          this.model
+          ).reset().play()
 
-  playAnimation(animationName) {
+          this.scene.add(this.model)
 
-    const action = this.mixer.clipAction(
-      this.animations[animationName],
-      this.mesh
+        } 
+        this.loadConyroller() //加载控制器
+      }
     );
-    
-    if (animationName === "jump") {
-      action.setLoop(LoopOnce); // 设置为仅播放一次
-      // 当动画播放完成时，停止动画
-      action.clampWhenFinished = true;
-      //action.addEventListener("finished", this.playAnimation("idle"));
-    }
-    if (action) {
-      // 停止当前的动作（如果有）
-      this.mixer.stopAllAction();
-
-      // 重置动作
-      action.reset();
-
-      // 播放动作
-      action.play();
-    } else {
-      console.warn(`Animation "${animationName}" not found.`);
-    }
+  
+      
   }
+
+  loadConyroller(){
+    //键鼠控制器
+    this.playerController = new PlayerController(
+      this.camera,
+      this.model.position,
+      this,
+      this.mixer
+    );
+    //手柄控制器
+    // this.gamepadManager = new GamepadManager(
+    //   this,
+    //   this.camera,
+    //   this.mixer
+    // );
+  }
+
+
   move() {
     if (this.isRun) {
       if (this.v < 0.7) {
@@ -119,34 +118,24 @@ export class Character {
       else this.v = 0;
     }
 
-    if(this.mesh){
+    if(this.model){
       // 获取模型的本地Z轴
     var localZ = new Vector3(0, 0, 1);
 
     // 将本地Z轴转换为模型的世界坐标系
-    localZ.applyQuaternion(this.mesh.quaternion);
+    localZ.applyQuaternion(this.model.quaternion);
 
     // 计算移动向量
     var moveDirection = localZ.clone().multiplyScalar(this.v);
     // 玩家模型的位置
-    const playerPosition = this.mesh.position;
+    const playerPosition = this.model.position;
 
     // 更新模型的位置
     playerPosition.add(moveDirection);
 
-    //摄像机时时跟随
-    // if (this.playerController) {
-    //   this.playerController.turnController.target.copy(
-    //     new Vector3(playerPosition.x, playerPosition.y + 40, playerPosition.z)
-    //   );
-    // }
 
     this.camera.position.add(moveDirection); //lerp(this.camera.position.copy().add(moveDirection), 0.3); // 平滑过渡摄像机位置
-    // this.camera.lookAt(
-    //   playerPosition.x,
-    //   playerPosition.y + 40,
-    //   playerPosition.z
-    // ); // 让摄像机始终看向玩家
+
     }
     
   }

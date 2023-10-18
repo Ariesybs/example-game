@@ -19,6 +19,7 @@ import { GamepadManager } from "./gamepadManager";
 import { UI } from "./ui";
 import { ChooseBox } from "./chooseBox";
 import { Loading } from "./loading";
+import { Physics } from "./physics";
 export class Game {
   constructor() {
     this.init();
@@ -70,13 +71,14 @@ export class Game {
     this.hemiLight = new HemiLight();
     this.dirLight = new DirLight();
     this.sky = new Sky(this.hemiLight, this.scene);
+    this.physics = new Physics() // 物理引擎
     this.scene.add(this.hemiLight);
     this.scene.add(this.dirLight);
     this.scene.add(this.sky);
     this.scene.add(this.chooseBox);
     this.render();
     //玩家选择完角色后再加载地图
-    this.chooseBox.setCallBack((name) => {
+    this.chooseBox.setCallBack((characterName) => {
       //加载页面
       //const loading = new Loading()
       this.chooseBox.components.forEach((component) => {
@@ -84,44 +86,18 @@ export class Game {
       });
       this.scene.remove(this.chooseBox);
       this.chooseBox = null;
-      // this.loadingManager.onProgress = (item,loaded,total)=>{
-      //   const progress = Math.floor(loaded / total * 100);
-      //   console.log(progress)
-      //   loading.setProgress(progress);
-      // }
-      this.load(name)//.then(loading.complete())
-    
+      this.load(characterName)
     });
   }
 
-  async load(name) {
+  async load(characterName) {
     this.map = new Map(this.scene);
     this.ui = new UI("container");
-    await this.loadCharacter(name);
+    this.character = new Character(this.mixer,this.camera,this.scene,this.physics,characterName);
     this.scene.add(this.map);
   }
 
-  async loadCharacter(characterName) {
-    this.character = new Character(this.mixer,this.camera);
-    await this.character.loadCharacter(characterName);
-    this.characterMesh = this.character.mesh;
-    this.dirLight.target = this.characterMesh;
-    
-    this.scene.add(this.characterMesh);
-    //键鼠控制器
-    this.playerController = new PlayerController(
-      this.camera,
-      this.characterMesh.position,
-      this.character,
-      this.mixer
-    );
-    //手柄控制器
-    this.gamepadManager = new GamepadManager(
-      this.character,
-      this.camera,
-      this.mixer
-    );
-  }
+  
 
   onWindowResize = () => {
     this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -136,11 +112,7 @@ export class Game {
   render() {
     this.renderer.render(this.scene, this.camera);
     const deltaTime = this.clock.getDelta();
-    // 渲染逻辑
-    // if (this.mixer) {
-    //   const delta = this.clock.getDelta();
-    //   this.mixer.update(delta);
-    // }
+
     if(this.chooseBox){
       this.chooseBox.update(deltaTime)
     }
