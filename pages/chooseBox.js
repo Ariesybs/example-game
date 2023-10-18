@@ -403,4 +403,8 @@ export class ChooseBox extends Mesh {
   setCallBack(callBack) {
     this.callBack = callBack;
   }
+
+  update(deltaTime){
+    this.mixer.update(deltaTime)
+  }
 }

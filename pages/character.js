@@ -1,9 +1,11 @@
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { LoopOnce } from "three";
+import { LoopOnce,Vector3 } from "three";
 export class Character {
-  constructor(mixer) {
+  constructor(mixer,camera) {
     this.loader = new GLTFLoader();
     this.mixer = mixer;
+    this.camera = camera
+    this.v= 0
     this.isRun = false;
     this.isJump =false;
     this.isRoll = false;
@@ -107,9 +109,52 @@ export class Character {
       console.warn(`Animation "${animationName}" not found.`);
     }
   }
+  move() {
+    if (this.isRun) {
+      if (this.v < 0.7) {
+        this.v += 0.05;
+      }
+    } else {
+      if (this.v > 0) this.v -= 0.05;
+      else this.v = 0;
+    }
+
+    if(this.mesh){
+      // 获取模型的本地Z轴
+    var localZ = new Vector3(0, 0, 1);
+
+    // 将本地Z轴转换为模型的世界坐标系
+    localZ.applyQuaternion(this.mesh.quaternion);
+
+    // 计算移动向量
+    var moveDirection = localZ.clone().multiplyScalar(this.v);
+    // 玩家模型的位置
+    const playerPosition = this.mesh.position;
+
+    // 更新模型的位置
+    playerPosition.add(moveDirection);
+
+    //摄像机时时跟随
+    // if (this.playerController) {
+    //   this.playerController.turnController.target.copy(
+    //     new Vector3(playerPosition.x, playerPosition.y + 40, playerPosition.z)
+    //   );
+    // }
+
+    this.camera.position.add(moveDirection); //lerp(this.camera.position.copy().add(moveDirection), 0.3); // 平滑过渡摄像机位置
+    // this.camera.lookAt(
+    //   playerPosition.x,
+    //   playerPosition.y + 40,
+    //   playerPosition.z
+    // ); // 让摄像机始终看向玩家
+    }
+    
+  }
 
   update(deltaTime) {
     // 更新混合器，用于播放动画
     this.mixer.update(deltaTime);
+    this.move()
+
   }
 }
