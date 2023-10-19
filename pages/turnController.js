@@ -79,7 +79,7 @@ export class TurnController {
       this.control.spherical.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, this.control.spherical.phi));
 
       // 更新相机的位置
-      this.updateCameraPosition();
+      //this.updateCameraPosition();
     }
   }
 

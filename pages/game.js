@@ -86,6 +86,7 @@ export class Game {
       });
       this.scene.remove(this.chooseBox);
       this.chooseBox = null;
+      
       this.load(characterName)
     });
   }
@@ -119,9 +120,8 @@ export class Game {
     if (this.character) {
       this.character.update(deltaTime);
     }
-    if(this.playerController){
-      this.playerController.update()
-    }
+
+    this.physics.update()
 
 
     // 继续下一帧

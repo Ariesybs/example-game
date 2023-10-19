@@ -1,5 +1,5 @@
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { LoopOnce,Vector3 } from "three";
+import { LoopOnce,Vector3,CapsuleGeometry,Mesh,MeshBasicMaterial } from "three";
 import { PlayerController } from "./playerController";
 import { GamepadManager } from "./gamepadManager";
 import * as CANNON from "cannon-es";
@@ -17,20 +17,7 @@ export class Character {
     this.loadCharacter(characterName)
   }
 
-  init(){
-    // 创建胶囊体
-    const radius = 5;
-    const height = 10;
-    const mass = 1;
-    const body = new CANNON.Body({ mass });
-    const shape = new CANNON.Cylinder(radius, radius, height, 20);
-    body.addShape(shape);
-    body.position.copy(new CANNON.Vec3(0,-30,0));
-    this.physics.world.addBody(body);
-
-    // 将角色的碰撞体添加到物理类
-    this.physics.addCharacterBody(body);
-  }
+  
 
   async loadCharacter(characterName) {
 
@@ -84,14 +71,16 @@ export class Character {
           this.scene.add(this.model)
 
         } 
-        this.loadConyroller() //加载控制器
+        
+        this.initPhysics()
+        this.loadController() //加载控制器
       }
     );
   
       
   }
 
-  loadConyroller(){
+  loadController(){
     //键鼠控制器
     this.playerController = new PlayerController(
       this.camera,
@@ -105,6 +94,37 @@ export class Character {
     //   this.camera,
     //   this.mixer
     // );
+  }
+
+  initPhysics(){
+    // 创建胶囊体
+    const radius = 5;
+    const height = 15;
+    const mass = 1;
+    const body = new CANNON.Body({ mass:mass });
+    const shape = new CANNON.Cylinder(radius, radius, height, 20);
+
+    body.addShape(shape);
+    body.position.copy(new CANNON.Vec3(0,0,0));
+    this.physicsBody = body
+    this.physics.world.addBody(body);
+    // 将角色的碰撞体添加到物理类
+    this.physics.addPhysics(this.model,body);
+
+    //辅助线
+    // 创建一个胶囊体的几何体
+    const capsuleGeometry = new CapsuleGeometry(radius, height, 10, 10);
+
+    // 创建一个材质，用于网格线条
+    const wireframeMaterial = new MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+
+    // 创建一个胶囊体的Mesh
+    const capsuleMesh = new Mesh(capsuleGeometry, wireframeMaterial);
+
+    this.capsuleMesh = capsuleMesh
+
+    // 添加Mesh到场景
+    this.scene.add(capsuleMesh);
   }
 
 
@@ -144,6 +164,13 @@ export class Character {
     // 更新混合器，用于播放动画
     this.mixer.update(deltaTime);
     this.move()
+    if(this.capsuleMesh){
+      this.capsuleMesh.position.copy(this.physicsBody.position)
+      this.capsuleMesh.quaternion.copy(this.physicsBody.quaternion)
+    }
+    if(this.playerController){
+      this.playerController.update()
+    }
 
   }
 }
